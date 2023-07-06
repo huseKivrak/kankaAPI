@@ -3,21 +3,21 @@ from django.urls import reverse
 from django.contrib.auth.models import AbstractUser
 
 # Utility for adding created/updated timestamps
+
+
 class TrackingModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
     class Meta:
         abstract = True
         ordering = ('-created_at',)
-
 
 
 class User(AbstractUser):
     email = models.EmailField(
         unique=True,
     )
-
-
 
 
 class Letter(TrackingModel):
@@ -94,16 +94,16 @@ class Letter(TrackingModel):
     def get_status(self):
         return self.status
 
+
 class Recipient(models.Model):
+
     letter = models.ForeignKey(
         Letter,
         on_delete=models.CASCADE,
     )
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='received',
     )
-
-
-
