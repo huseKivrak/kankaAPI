@@ -11,7 +11,7 @@ from .serializers import LetterSerializer
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
-    Custom serializer for the token obtain pair view.
+    add username to token
     """
     @classmethod
     def get_token(cls, user):
