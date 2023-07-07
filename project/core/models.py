@@ -1,6 +1,7 @@
 from django.db import models
 from django.urls import reverse
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import RegexValidator
 
 # Utility for adding created/updated timestamps
 
@@ -21,6 +22,11 @@ class User(AbstractUser):
 
     zip_code = models.CharField(
         max_length=10,
+        validators=[RegexValidator(
+            regex='^[0-9]{5}(?:-[0-9]{4})?$|^$',
+            message='Zip code must be in the format XXXXX or XXXXX-XXXX',
+            code='invalid_zip_code'
+        )]
     )
 
 
@@ -48,7 +54,6 @@ class Letter(TrackingModel):
         null=True,
         blank=True,
     )
-
 
     title = models.CharField(
         max_length=100,
@@ -94,6 +99,12 @@ class Letter(TrackingModel):
         related_name='authored_letters',
     )
 
+    recipient = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='received_letters',
+    )
+
     def __str__(self):
         return self.title
 
@@ -102,17 +113,3 @@ class Letter(TrackingModel):
 
     def get_status(self):
         return self.status
-
-
-class Recipient(models.Model):
-
-    letter = models.ForeignKey(
-        Letter,
-        on_delete=models.CASCADE,
-    )
-
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='received_letters',
-    )
