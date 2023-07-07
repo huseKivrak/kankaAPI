@@ -92,7 +92,6 @@ DATABASES = {
 }
 
 
-
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
@@ -135,12 +134,6 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-#####################
-#####################
-### CUSTOM SETTINGS ##
-#####################
-#####################
-
 AUTH_USER_MODEL = 'core.User'
 
 # REST FRAMEWORK:
@@ -148,14 +141,19 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
+
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+    ],
+
 }
 
 # JWT:
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=180), #stay logged in for 6 months
-    "ROTATE_REFRESH_TOKENS": True, #rolling refresh token
-    "BLACKLIST_AFTER_ROTATION": True, #blacklist old refresh tokens
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "ROTATE_REFRESH_TOKENS": True,  # rolling refresh token
+    "BLACKLIST_AFTER_ROTATION": True,  # blacklist old refresh tokens
     "UPDATE_LAST_LOGIN": False,
 
     "ALGORITHM": "HS256",

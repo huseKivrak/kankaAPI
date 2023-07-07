@@ -1,16 +1,49 @@
 from django.db.models import Q
 
+from rest_framework.views import APIView
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.response import Response
+from rest_framework import status
 
-from .models import Letter
-from .serializers import LetterSerializer
+from .models import User, Letter
+from .serializers import LetterSerializer, UserSerializer
 
 ###################
-'''User Auth Views'''
+'''User Views'''
 ###################
+
+
+class RegisterView(APIView):
+    """
+    Register a new user.
+    """
+
+    def post(self, request):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED
+            )
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+class AllUsersView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     add username to token
@@ -21,10 +54,9 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['username'] = user.username
         return token
 
+
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
-
-
 
 
 ###################
@@ -43,6 +75,7 @@ class LetterList(ListCreateAPIView):
     serializer_class = LetterSerializer
 
     '''All user's drafts and received letters'''
+
     def get_queryset(self):
         user = self.request.user
         queryset = Letter.objects.filter(

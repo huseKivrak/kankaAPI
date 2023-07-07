@@ -1,23 +1,53 @@
 from django.db import models
 from django.urls import reverse
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import BaseUserManager, AbstractUser, PermissionsMixin
 from django.core.validators import RegexValidator
 
 # Utility for adding created/updated timestamps
 
 
 class TrackingModel(models.Model):
+    '''Adds created_at and updated_at fields'''
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
     class Meta:
         abstract = True
         ordering = ('-created_at',)
 
+class UserProfileManager(BaseUserManager):
+    """Manager for user profiles"""
 
-class User(AbstractUser):
+    def create_user(self, email, username, password=None):
+        if not email:
+            raise ValueError('Users must have an email')
+
+        email = self.normalize_email(email)
+        user = self.model(email=email, username=username)
+        user.set_password(password)
+        user.save(using=self._db)
+
+        return user
+
+    def create_superuser(self, email, username, password):
+        user = self.create_user(email, username, password)
+        user.is_superuser = True
+        user.is_staff = True
+        user.save(using=self._db)
+
+
+
+class User(AbstractUser, PermissionsMixin):
     email = models.EmailField(
         unique=True,
+    )
+
+    username = models.CharField(
+        max_length=50,
+        unique=True,
+    )
+
+    is_active = models.BooleanField(
+        default=True,
     )
 
     zip_code = models.CharField(
@@ -28,6 +58,15 @@ class User(AbstractUser):
             code='invalid_zip_code'
         )]
     )
+
+    objects = UserProfileManager()
+
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = ['email', 'zip_code']
+
+    def __str__(self):
+        return self.email
+
 
 
 class Letter(TrackingModel):
