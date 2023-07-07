@@ -19,6 +19,10 @@ class User(AbstractUser):
         unique=True,
     )
 
+    zip_code = models.CharField(
+        max_length=10,
+    )
+
 
 class Letter(TrackingModel):
 
@@ -40,6 +44,12 @@ class Letter(TrackingModel):
         default=DRAFT,
     )
 
+    delivery_date = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+
     title = models.CharField(
         max_length=100,
     )
@@ -56,8 +66,7 @@ class Letter(TrackingModel):
         help_text='Dear [name],'
     )
 
-    body = models.CharField(
-        max_length=2500,
+    body = models.TextField(
     )
 
     closer = models.CharField(
@@ -82,7 +91,7 @@ class Letter(TrackingModel):
         User,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='authored',
+        related_name='authored_letters',
     )
 
     def __str__(self):
@@ -105,5 +114,5 @@ class Recipient(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='received',
+        related_name='received_letters',
     )
