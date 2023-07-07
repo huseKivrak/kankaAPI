@@ -1,6 +1,6 @@
 from django.db.models import Q
 
-from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -8,8 +8,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import Letter
 from .serializers import LetterSerializer
 
-
+###################
 '''Token Views'''
+###################
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     add username to token
@@ -32,7 +33,7 @@ class MyTokenObtainPairView(TokenObtainPairView):
 ###################
 
 
-class LetterList(ListAPIView):
+class LetterList(ListCreateAPIView):
     """
     Retrieve all letters relevant to the user:
     - all drafts
@@ -51,6 +52,9 @@ class LetterList(ListAPIView):
             ))
         return queryset
 
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
 
 class LetterDetail(RetrieveUpdateDestroyAPIView):
 
@@ -66,16 +70,3 @@ class LetterDetail(RetrieveUpdateDestroyAPIView):
         queryset = Letter.objects.filter(author=user)
 
         return queryset
-
-
-
-class LetterCreate(CreateAPIView):
-    """
-    Create a new letter.
-    """
-    permission_classes = [IsAuthenticated]
-    serializer_class = LetterSerializer
-
-    def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
-
