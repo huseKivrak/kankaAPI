@@ -9,7 +9,7 @@ from .models import Letter
 from .serializers import LetterSerializer
 
 ###################
-'''Token Views'''
+'''User Auth Views'''
 ###################
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
@@ -20,7 +20,6 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
         token['username'] = user.username
         return token
-
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
