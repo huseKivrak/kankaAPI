@@ -1,15 +1,13 @@
-from django.db.models import Q
-
 from rest_framework.views import APIView
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.response import Response
 from rest_framework import status
 
 from .models import User, Letter
-from .serializers import LetterSerializer, UserSerializer
+from .serializers import MyTokenObtainPairSerializer, LetterSerializer, UserSerializer
 
 ###################
 '''User Views'''
@@ -34,7 +32,6 @@ class RegisterView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-
 class AllUsersView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -42,17 +39,6 @@ class AllUsersView(APIView):
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """
-    add username to token
-    """
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        token['username'] = user.username
-        return token
 
 
 class MyTokenObtainPairView(TokenObtainPairView):
@@ -66,7 +52,7 @@ class MyTokenObtainPairView(TokenObtainPairView):
 
 class LetterList(ListCreateAPIView):
     """
-    Retrieve all letters relevant to the user:
+    Retrieve all letters owned by the user:
     - all drafts
     - all received letters that have been delivered or read
     """
@@ -74,18 +60,33 @@ class LetterList(ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = LetterSerializer
 
-    '''All user's drafts and received letters'''
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Letter.objects.filter(
-            Q(author=user, status='draft') | Q(
-                recipient__user=user, status__in=['delivered', 'read']
-            ))
+        queryset = Letter.objects.filter(owner=user)
         return queryset
 
-    def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+    def post(self, request, *args, **kwargs):
+        title = request.data.get('title')
+        body = request.data.get('body')
+        recipient_username = request.data.get('recipient')
+        try:
+            recipient = User.objects.get(username=recipient_username)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Recipient does not exist.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        draft = Letter.objects.create_draft(
+            title=title,
+            body=body,
+            author=request.user,
+            recipient=recipient,
+        )
+
+        serializer = self.get_serializer(draft)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class LetterDetail(RetrieveUpdateDestroyAPIView):
@@ -99,6 +100,28 @@ class LetterDetail(RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Letter.objects.filter(author=user)
-
+        queryset = Letter.objects.filter(owner=user)
         return queryset
+
+    def patch(self, request, *args, **kwargs):
+        letter = self.get_object()
+
+        if letter.status == 'draft':
+            serializer = self.get_serializer(data=request.data, partial=True)
+
+            if serializer.is_valid():
+                valid_data = serializer.validated_data
+                if "title" in valid_data:
+                    letter.title = valid_data["title"]
+                if "body" in valid_data:
+                    letter.body = valid_data["body"]
+                letter.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        else:
+            return Response(
+                {'error': 'You can only update a draft letter.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
