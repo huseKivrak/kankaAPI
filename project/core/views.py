@@ -32,6 +32,7 @@ class RegisterView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+
 class AllUsersView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -52,24 +53,57 @@ class MyTokenObtainPairView(TokenObtainPairView):
 
 class LetterList(ListCreateAPIView):
     """
-    Retrieve all letters owned by the user:
+    GET:
+    Retrieve all owned letters:
     - all drafts
-    - all received letters that have been delivered or read
+    - all received letters (status is 'delivered' or 'read')
+
+    POST:
+    Request body:
+    {
+        "action": "draft" | "send"
+        "title": "string",
+        "body": "string",
+        "recipient": "string"
+    }
+
+    If action is "draft", create a new draft letter.
+    If action is "send", create a new draft letter and send it.
+
+    Response body:
+    {
+        "id": "integer",
+        "status": "draft" | "sent" | "delivered" | "read",
+        "delivery_date": "string",
+        "title": "string",
+        "body": "string",
+        "author": "string",
+        "recipient": "string",
+        "owner": "string"
+    }
+
     """
 
     permission_classes = [IsAuthenticated]
     serializer_class = LetterSerializer
 
-
     def get_queryset(self):
         user = self.request.user
-        queryset = Letter.objects.filter(owner=user)
+        queryset = Letter.letters.filter(owner=user)
         return queryset
 
     def post(self, request, *args, **kwargs):
         title = request.data.get('title')
         body = request.data.get('body')
         recipient_username = request.data.get('recipient')
+        action = request.data.get('action')
+
+        if action not in ['draft', 'send']:
+            return Response(
+                {'error': 'Invalid action (must be "draft" or "send").'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
             recipient = User.objects.get(username=recipient_username)
         except User.DoesNotExist:
@@ -78,15 +112,21 @@ class LetterList(ListCreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        draft = Letter.objects.create_draft(
+        letter = Letter.letters.create(
             title=title,
             body=body,
             author=request.user,
             recipient=recipient,
         )
 
-        serializer = self.get_serializer(draft)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        if action == 'draft':
+            serializer = self.get_serializer(letter)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        elif action == 'send':
+            letter.send()
+            serializer = self.get_serializer(letter)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class LetterDetail(RetrieveUpdateDestroyAPIView):

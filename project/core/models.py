@@ -5,6 +5,8 @@ from django.contrib.auth.models import BaseUserManager, AbstractUser, Permission
 from django.core.validators import RegexValidator
 
 # Utility for adding created/updated timestamps
+
+
 class TrackingModel(models.Model):
     '''Adds created_at and updated_at fields'''
     created_at = models.DateTimeField(auto_now_add=True)
@@ -65,21 +67,23 @@ class User(AbstractUser, PermissionsMixin):
     REQUIRED_FIELDS = ['email', 'zip_code']
 
     def __str__(self):
-        return self.email
-
+        return self.username
 
 
 class DraftLetterManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(status='draft')
 
+
 class DeliveredLetterManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(status='delivered')
 
+
 class ReadLetterManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(status='read')
+
 
 class Letter(TrackingModel):
 
@@ -94,6 +98,11 @@ class Letter(TrackingModel):
         max_length=10,
         choices=STATUS_CHOICES,
         default='draft',
+    )
+
+    sent_date = models.DateTimeField(
+        null=True,
+        blank=True,
     )
 
     delivery_date = models.DateTimeField(
@@ -127,13 +136,15 @@ class Letter(TrackingModel):
         on_delete=models.CASCADE,
         null=True,
         related_name='owned_letters',
+        default=author,
     )
 
-    ## Letter methods ##
+
     def send(self):
         self.status = 'sent'
-        # Tomorrow is just a placeholder for now
-        self.delivery_date = self.updated_at + timezone.timedelta(days=1)
+        self.sent_date = timezone.now()
+        # TODO: update with ZipCodeAPI value
+        self.delivery_date = self.sent_date + timezone.timedelta(days=1)
         self.save()
 
     def deliver(self):
@@ -147,7 +158,6 @@ class Letter(TrackingModel):
 
     def is_owned_by(self, user):
         return self.owner == user
-
 
     # TODO: better names
     letters = models.Manager()
