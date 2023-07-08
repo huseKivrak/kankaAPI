@@ -67,14 +67,14 @@ class LetterList(ListCreateAPIView):
         "recipient": "string"
     }
 
-    If action is "draft", create a new draft letter.
-    If action is "send", create a new draft letter and send it.
+    If action is "save", create a new draft letter.
+    If action is "send", create and send letter.
 
     Response body:
     {
         "id": "integer",
         "status": "draft" | "sent" | "delivered" | "read",
-        "delivery_date": "string",
+        "delivery_date": null or "string",
         "title": "string",
         "body": "string",
         "author": "string",
@@ -98,7 +98,6 @@ class LetterList(ListCreateAPIView):
         recipient_username = request.data.get('recipient')
         action = request.data.get('action')
 
-
         if action not in ['save', 'send']:
             return Response(
                 {'error': 'Invalid action (must be "save" or "send").'},
@@ -112,7 +111,6 @@ class LetterList(ListCreateAPIView):
                 {'error': 'Recipient does not exist.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
 
         letter = Letter.letters.create(
             title=title,
@@ -142,8 +140,14 @@ class LetterDetail(RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Letter.objects.filter(owner=user)
+        queryset = Letter.letters.filter(owner=user)
         return queryset
+
+    def get(self, request, *args, **kwargs):
+        letter = self.get_object()
+        letter.mark_as_read()
+        serializer = self.get_serializer(letter)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def patch(self, request, *args, **kwargs):
         letter = self.get_object()
@@ -164,6 +168,6 @@ class LetterDetail(RetrieveUpdateDestroyAPIView):
 
         else:
             return Response(
-                {'error': 'You can only update a draft letter.'},
+                {'error': 'Only drafts can be edited.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
