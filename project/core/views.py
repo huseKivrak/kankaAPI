@@ -61,7 +61,7 @@ class LetterList(ListCreateAPIView):
     POST:
     Request body:
     {
-        "action": "draft" | "send"
+        "action": "save" | "send"
         "title": "string",
         "body": "string",
         "recipient": "string"
@@ -98,9 +98,10 @@ class LetterList(ListCreateAPIView):
         recipient_username = request.data.get('recipient')
         action = request.data.get('action')
 
-        if action not in ['draft', 'send']:
+
+        if action not in ['save', 'send']:
             return Response(
-                {'error': 'Invalid action (must be "draft" or "send").'},
+                {'error': 'Invalid action (must be "save" or "send").'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -112,6 +113,7 @@ class LetterList(ListCreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+
         letter = Letter.letters.create(
             title=title,
             body=body,
@@ -119,7 +121,7 @@ class LetterList(ListCreateAPIView):
             recipient=recipient,
         )
 
-        if action == 'draft':
+        if action == 'save':
             serializer = self.get_serializer(letter)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
