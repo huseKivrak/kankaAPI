@@ -17,15 +17,13 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'email', 'zip_code']
-        extra_kwargs = {'password': {'write_only': True}}
-
-    def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
-        return user
-
+        fields = ['id', 'username', 'email', 'zip_code']
 
 class LetterSerializer(serializers.ModelSerializer):
+    author = serializers.SlugRelatedField(slug_field='username', read_only=True)
+    recipient = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all())
+    owner = serializers.SlugRelatedField(slug_field='username', read_only=True)
+
     class Meta:
         model = Letter
         fields = '__all__'
