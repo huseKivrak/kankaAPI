@@ -69,19 +69,17 @@ class User(AbstractUser, PermissionsMixin):
         return self.username
 
 
-class DraftLetterManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(status='draft')
+class LetterQuerySet(models.QuerySet):
+    def drafts(self):
+        return self.filter(status='draft')
+
+    def deliveries(self):
+        return self.filter(status='delivered')
+
+    def reads(self):
+        return self.filter(status='read')
 
 
-class DeliveredLetterManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(status='delivered')
-
-
-class ReadLetterManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(status='read')
 
 
 class Letter(TrackingModel):
@@ -158,11 +156,8 @@ class Letter(TrackingModel):
     def is_owned_by(self, user):
         return self.owner == user
 
-    # TODO: better names
-    letters = models.Manager()
-    drafts = DraftLetterManager()
-    deliveries = DeliveredLetterManager()
-    reads = ReadLetterManager()
+
+    letters = LetterQuerySet.as_manager()
 
     def __str__(self):
         return self.title
