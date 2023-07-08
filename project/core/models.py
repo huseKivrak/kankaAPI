@@ -1,18 +1,19 @@
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 from django.contrib.auth.models import BaseUserManager, AbstractUser, PermissionsMixin
 from django.core.validators import RegexValidator
 
 # Utility for adding created/updated timestamps
-
-
 class TrackingModel(models.Model):
     '''Adds created_at and updated_at fields'''
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
     class Meta:
         abstract = True
         ordering = ('-created_at',)
+
 
 class UserProfileManager(BaseUserManager):
     """Manager for user profiles"""
@@ -33,7 +34,6 @@ class UserProfileManager(BaseUserManager):
         user.is_superuser = True
         user.is_staff = True
         user.save(using=self._db)
-
 
 
 class User(AbstractUser, PermissionsMixin):
@@ -69,27 +69,35 @@ class User(AbstractUser, PermissionsMixin):
 
 
 
+class DraftLetterManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(status='draft')
+
+class DeliveredLetterManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(status='delivered')
+
+class ReadLetterManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(status='read')
+
 class Letter(TrackingModel):
 
-    DRAFT = 'draft'
-    SENT = 'sent'
-    DELIVERED = 'delivered'
-    READ = 'read'
-
     STATUS_CHOICES = [
-        (DRAFT, 'Draft'),
-        (SENT, 'Sent'),
-        (DELIVERED, 'Delivered'),
-        (READ, 'Read'),
+        ('draft', 'Draft'),
+        ('sent', 'Sent'),
+        ('delivered', 'Delivered'),
+        ('read', 'Read'),
     ]
 
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
-        default=DRAFT,
+        default='draft',
     )
 
     delivery_date = models.DateTimeField(
+        # Calculated after letter is sent
         null=True,
         blank=True,
     )
@@ -98,37 +106,7 @@ class Letter(TrackingModel):
         max_length=100,
     )
 
-    # 'date' is just another text field. actual dates handled by TrackingModel
-    date = models.CharField(
-        max_length=2500,
-        blank=True,
-    )
-
-    opener = models.CharField(
-        max_length=2500,
-        blank=True,
-        help_text='Dear [name],'
-    )
-
     body = models.TextField(
-    )
-
-    closer = models.CharField(
-        max_length=2500,
-        blank=True,
-        help_text='Regards,',
-        verbose_name='Complimentary close'
-    )
-
-    signature = models.CharField(
-        max_length=2500,
-        blank=True,
-    )
-
-    postscript = models.CharField(
-        max_length=2500,
-        blank=True,
-        help_text='P.S. [message]'
     )
 
     author = models.ForeignKey(
@@ -144,11 +122,41 @@ class Letter(TrackingModel):
         related_name='received_letters',
     )
 
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        related_name='owned_letters',
+    )
+
+    ## Letter methods ##
+    def send(self):
+        self.status = 'sent'
+        # Tomorrow is just a placeholder for now
+        self.delivery_date = self.updated_at + timezone.timedelta(days=1)
+        self.save()
+
+    def deliver(self):
+        self.status = 'delivered'
+        self.owner = self.recipient
+        self.save()
+
+    def mark_as_read(self):
+        self.status = 'read'
+        self.save()
+
+    def is_owned_by(self, user):
+        return self.owner == user
+
+
+    # TODO: better names
+    letters = models.Manager()
+    drafts = DraftLetterManager()
+    deliveries = DeliveredLetterManager()
+    reads = ReadLetterManager()
+
     def __str__(self):
         return self.title
 
     def get_absolute_url(self):
         return reverse('letter_detail', kwargs={'pk': self.pk})
-
-    def get_status(self):
-        return self.status
