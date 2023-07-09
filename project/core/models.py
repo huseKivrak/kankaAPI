@@ -62,8 +62,7 @@ class User(AbstractUser, PermissionsMixin):
 
     objects = UserProfileManager()
 
-    USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = ['email', 'zip_code']
+    REQUIRED_FIELDS = ['email']
 
     def __str__(self):
         return self.username
@@ -73,7 +72,10 @@ class LetterQuerySet(models.QuerySet):
     def drafts(self):
         return self.filter(status='draft')
 
-    def deliveries(self):
+    def sents(self):
+        return self.filter(status='sent')
+
+    def delivereds(self):
         return self.filter(status='delivered')
 
     def reads(self):
