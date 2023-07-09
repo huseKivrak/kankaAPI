@@ -82,8 +82,6 @@ class LetterQuerySet(models.QuerySet):
         return self.filter(status='read')
 
 
-
-
 class Letter(TrackingModel):
 
     STATUS_CHOICES = [
@@ -138,7 +136,6 @@ class Letter(TrackingModel):
         default=author,
     )
 
-
     def send(self):
         self.status = 'sent'
         self.sent_date = timezone.now()
@@ -147,6 +144,7 @@ class Letter(TrackingModel):
         self.save()
 
     def deliver(self):
+        '''Called by delivery_scheduler'''
         self.status = 'delivered'
         self.owner = self.recipient
         self.save()
@@ -157,7 +155,6 @@ class Letter(TrackingModel):
 
     def is_owned_by(self, user):
         return self.owner == user
-
 
     letters = LetterQuerySet.as_manager()
 

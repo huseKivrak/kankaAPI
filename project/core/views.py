@@ -1,5 +1,5 @@
 from rest_framework.views import APIView
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -54,11 +54,13 @@ class MyTokenObtainPairView(TokenObtainPairView):
 class LetterList(ListCreateAPIView):
     """
     GET:
-    Retrieve all owned letters:
-    - all drafts
-    - all received letters (status is 'delivered' or 'read')
+    Retrieve all user-owned letters:
+    - all their drafts
+    - all received letters ('delivered' or 'read', where user is recipient)
 
     POST:
+    Create a new letter draft or send a letter.
+
     Request body:
     {
         "action": "save" | "send"
@@ -129,10 +131,14 @@ class LetterList(ListCreateAPIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class LetterDetail(RetrieveUpdateDestroyAPIView):
+class LetterDetail(RetrieveUpdateAPIView):
 
     """
-    Retrieve, update or delete a letter.
+    GET:
+    Retrieve a user-owned letter by id.
+
+    PATCH:
+    Edit a draft (action = "save" or send an existing one("send").
     """
 
     permission_classes = [IsAuthenticated]
@@ -151,9 +157,23 @@ class LetterDetail(RetrieveUpdateDestroyAPIView):
 
     def patch(self, request, *args, **kwargs):
         letter = self.get_object()
+        action = request.data.get('action')
 
-        if letter.status == 'draft':
-            serializer = self.get_serializer(data=request.data, partial=True)
+        if action not in ['save', 'send']:
+            return Response(
+                {'error': 'Invalid action (must be "save" or "send").'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if letter.status != 'draft':
+            return Response(
+                {'error': 'Only drafts can be edited.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if action == 'save':
+            serializer = self.get_serializer(
+                data=request.data, partial=True)
 
             if serializer.is_valid():
                 valid_data = serializer.validated_data
@@ -166,8 +186,6 @@ class LetterDetail(RetrieveUpdateDestroyAPIView):
 
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        else:
-            return Response(
-                {'error': 'Only drafts can be edited.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        letter.send()
+        serializer = self.get_serializer(letter)
+        return Response(serializer.data, status=status.HTTP_200_OK)
